@@ -19,7 +19,7 @@ Open another command prompt here and run the following command:
 python -m http.server  
 ```
 This should start the client on localhost at port:8000  
-Now to view the task manager, open a browser and type the following in the address bar:
+Now to view the Task Manager application, open a browser and type the following in the address bar:
 ```
 http://localhost:8000/  
 ```
