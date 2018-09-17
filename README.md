@@ -26,7 +26,7 @@ http://localhost:8000/
 and then click on 'tasks.html'  
 The table should display all tasks present in the database
 ## Deployment 
-Python-Flask server is currently deployed on PythonAnywhere (https://www.pythonanywhere.com/)
+Python-Flask server is currently deployed on PythonAnywhere (https://www.pythonanywhere.com/)  
 Knockout JS client is currently deployed on 000Webhost (https://www.000webhost.com/)  
 
 To see the deployed application navigate to https://bhosaleakash-tasks.000webhostapp.com/index.html
