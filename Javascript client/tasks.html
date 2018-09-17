@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Task Manager</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <link href="/script/bootstrap-3.3.7-dist/bootstrap-3.3.7-dist/css/bootstrap-combined.min.css" type="text/css" rel="stylesheet">
+
+    <script src="/node_modules/jquery/dist/jquery.js"></script>
+
+    <script src="/script/moment/moment.js"></script>
+
+    <script src="/script/bootstrap-3.3.7-dist/bootstrap-3.3.7-dist/js/bootstrap.min.js"></script>
+
+    <script src="/script/Knockout/knockout.js"></script>
+
+    <script lang="javascript" src="script/js-xlsx-master/dist/xlsx.full.min.js"></script>
+
+    <script lang="javascript" src="node_modules/filesaver.js-npm/FileSaver.min.js"></script>
+
+    <style>
+    
+    </style>
+</head>
+
+<body>
+    <div class="navbar">
+        <div class="navbar-inner">
+            <h1 style="float: left;font-size: 30px;">
+                Task Manager
+            </h1>
+        </div>
+    </div>
+    <div id="main" class="container">
+        <div class="navbar">
+            <div class="navbar-inner">
+                <div>
+                    <button data-bind="click: beginAdd" class="btn">Add Task</button>
+                    <button data-bind="click: showDoneTasks" class="btn">Show Done Tasks</button>
+                    <button data-bind="click: showPendingTasks" class="btn">Show Pending Tasks</button>
+                    <button data-bind="click: showAllTasks" class="btn">Show All Tasks</button>
+                    <button data-bind="click: deleteAllTasks" class="btn">Delete All Tasks</button>
+                    <button data-bind="click: exportToExcel" class="btn" id="exportToExcel">Export To Excel</button>
+                </div>
+            </div>
+        </div>
+        <table class="table table-striped table-bordered">
+            <tr>
+                <td></td>
+                <th>
+                    <b>Task</b>
+                </th>
+                <th>
+                    <b>Created On</b>
+                </th>
+                <th>
+                    <b>Scheduled Date/Scheduled Time</b>
+                </th>
+                <th>
+                    <b>Completion Date/Completion Time</b>
+                </th>
+                <th>
+                    <b>Completion Comments </b>
+                </th>
+                <th>
+                    <b>Options</b>
+                </th>
+                <th>
+                    <b>Reminder</b>
+                </th>
+            </tr>
+            <!-- ko foreach: tasks -->
+            <tr>
+                <td>
+                    <span data-bind="visible: done" class="label label-success">Done</span>
+                    <span data-bind="visible: !done()" class="label label-important">In Progress</span>
+                </td>
+                <td>
+                    <p>
+                        <b data-bind="text: title"></b>
+                    </p>
+                    <p data-bind="text: description" style="white-space: pre-line"></p>
+                </td>
+                <td>
+                    <p>
+                        <b data-bind="text: timestamp"></b>
+                    </p>
+                </td>
+                <td>
+                    <p>
+                        <b data-bind="text: scheduledDateTime"></b>
+                    </p>
+                </td>
+                <td>
+                    <p>
+                        <b data-bind="text: completionDateTime"></b>
+                    </p>
+                </td>
+                <td>
+                    <p>
+                        <b data-bind="text: comments"></b>
+                    </p>
+                </td>
+                <td style="white-space: nowrap;">
+                    <button data-bind="click: $parent.beginEdit" class="btn">Edit</button>
+                    <button data-bind="click: $parent.remove" class="btn">Delete</button>
+                    <span data-bind="visible: done">
+                        <button data-bind="click: $parent.markInProgress" class="btn">Mark In Progress</button>
+                    </span>
+                    <span data-bind="visible: !done()">
+                        <button data-bind="click: $parent.markDone" class="btn">Mark Done</button>
+                    </span>
+                </td>
+                <td style="white-space: nowrap;">
+                    <span>
+                        <button data-bind="enable:reminder, click:$parent.startSnooze" class="btn" id="snoozeBtn">Snooze</button>
+                        <span>
+                            <p>
+                                <b data-bind="text:reminderText"></b>
+                            </p>
+                        </span>
+                    </span>
+                </td>
+            </tr>
+            <!-- /ko -->
+        </table>
+    </div>
+    <div id="comments" class="modal hide fade" tabindex="=1" role="dialog" aria-labelledby="addDialogLabel" aria-hidden="true">
+        <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal" aria-hidden="true">x</button>
+            <h3 id="commentsDialogLabel">Add Comments</h3>
+        </div>
+        <div class="modal-body">
+            <form class="form-horizontal">
+                <div class="control-group">
+                    <label class="control-label" for="inputComments">Task</label>
+                    <div class="controls">
+                        <textarea data-bind="value: comments" rows="10" cols="50" id="inputComments" placeholder="Comments" style="width: 300px;"></textarea>
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button data-bind="click: addComments" class="btn btn-primary">Add Comments</button>
+            <button class="btn" data-dismiss="modal" aria-hidden="true">Cancel</button>
+        </div>
+    </div>
+    <div id="add" class="modal hide fade" tabindex="=1" role="dialog" aria-labelledby="addDialogLabel" aria-hidden="true">
+        <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal" aria-hidden="true">x</button>
+            <h3 id="addDialogLabel">Add Task</h3>
+        </div>
+        <div class="modal-body">
+            <form class="form-horizontal">
+                <div class="control-group">
+                    <label class="control-label" for="inputTask">Task</label>
+                    <div class="controls">
+                        <input data-bind="value: title" type="text" id="inputTitle" placeholder="Task title" style="width: 300px;" required>
+                        <p id="titleError"></p>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="inputDescription">Description</label>
+                    <div class="controls">
+                        <textarea data-bind="value: description" rows="10" cols="50" id="inputDescription" placeholder="Description" style="width: 300px;"
+                            required></textarea>
+                        <p id="descriptionError"></p>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="inputScheduledDate">Scheduled Date</label>
+                    <div class="controls">
+                        <input data-bind="value: scheduledDate" type="date" id="inputScheduledDate" placeholder="Scheduled Date" style="width: 300px;"
+                            required>
+                        <p id="scheduledDateError"></p>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="inputScheduledTime">Scheduled Time</label>
+                    <div class="controls">
+                        <input data-bind="value: scheduledTime" type="time" id="inputScheduledTime" placeholder="Scheduled Time" style="width: 300px;"
+                            required>
+                        <p id="scheduledTimeError"></p>
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button data-bind="click: addTask" class="btn btn-primary">Add Task</button>
+            <button class="btn" data-dismiss="modal" aria-hidden="true">Cancel</button>
+        </div>
+    </div>
+    <div id="edit" class="modal hide fade" tabindex="=1" role="dialog" aria-labelledby="editDialogLabel" aria-hidden="true">
+        <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
+            <h3 id="editDialogLabel">Edit Task</h3>
+        </div>
+        <div class="modal-body">
+            <form class="form-horizontal">
+                <div class="control-group">
+                    <label class="control-label" for="inputTask">Title</label>
+                    <div class="controls">
+                        <input data-bind="value: title" type="text" id="inputTitle" placeholder="Task title" style="width: 150px;">
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="inputTask">Description</label>
+                    <div class="controls">
+                        <textarea data-bind="value: description" rows="10" cols="50" id="inputDescription" placeholder="Task description" style="width: 150px;"></textarea>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="inputScheduledDate">Scheduled Date</label>
+                    <div class="controls">
+                        <input data-bind="value: scheduledDate" type="date" id="inputScheduledDate" placeholder="Scheduled Date" style="width: 300px;">
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="inputScheduledTime">Scheduled TIme</label>
+                    <div class="controls">
+                        <input data-bind="value: scheduledTime" type="time" id="inputScheduledTime" placeholder="Scheduled Time" style="width: 300px;">
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button data-bind="click:editTask" class="btn btn-primary">Update Task</button>
+            <button class="btn" data-dismiss="modal" aria-hidden="true">Cancel</button>
+        </div>
+    </div>
+    <div id="snooze" class="modal hide fade" tabindex="=1" role="dialog" aria-labelledby="snoozeDialogLabel" aria-hidden="true">
+        <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
+            <h3 id="snoozeDialogLabel">Snooze Task</h3>
+        </div>
+        <div class="modal-body">
+            <form id="snoozeForm" class="form-horizontal">
+                <div class="control-group">
+                    <label class="control-label" for="inputSnoozeMinutes">Minutes</label>
+                    <div class="controls">
+                        <input data-bind="value:minutes" type="number" min="0" max="60" id="inputSnoozeMinutes" style="width: 300px;" required>
+                        <p id="minuteError"></p>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="inputSnoozeHours">Hours</label>
+                    <div class="controls">
+                        <input data-bind="value:hours" type="number" min="0" max="23" id="inputSnoozeHours" style="width: 300px;" required>
+                        <p id="hourError"></p>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="inputSnoozeDays">Days</label>
+                    <div class="controls">
+                        <input data-bind="value:days" type="number" min="0" max="10" id="inputSnoozeDays" style="width: 300px;" required>
+                        <p id="dayError"></p>
+                    </div>
+                </div>
+            </form>
+            <div class="modal-footer">
+                <button data-bind="click:snoozeTask" class="btn btn-primary">Snooze Task</button>
+                <button class="btn" data-dismiss="modal" aria-hidden="true">Cancel</button>
+            </div>
+        </div>
+        <script type="text/javascript">
+
+            /*
+                    TasksViewModel(): Manages various primary functions:-
+
+                    1. Adding new task
+                    2. Editing exisitng task
+                    3. Marking a task to be done.
+                    4. Marking a task to be in progress
+                    5. Adding comments while marking a task to be done.
+                    6. Deleting a particular task
+                    7. Deleting all tasks
+                    8. Exporting the list of tasks to an excel spreadsheet.
+            */
+
+            function TasksViewModel() {
+                var self = this;
+                self.getTasksURI = 'https://bhosaleakash.pythonanywhere.com/todo/tasks';
+                self.createTaskURI = 'https://bhosaleakash.pythonanywhere.com/todo/task';
+                self.getDoneTasksURI = 'https://bhosaleakash.pythonanywhere.com/todo/tasks/done';
+                self.getPendingTaskURI = 'https://bhosaleakash.pythonanywhere.com/todo/tasks/pending';
+                self.deleteAllTasksURI = 'https://bhosaleakash.pythonanywhere.com/todo/tasks/deleteAll';
+                self.getRemindersURI = 'https://bhosaleakash.pythonanywhere.com/todo/tasks/reminders';
+                
+                self.tasks = ko.observableArray();
+
+                //----------------------------<send AJAX request of 'POST' type>-----------------------------------------------
+                self.postAjax = function (uri, method, data) {
+                    var request = {
+                        url: uri,
+                        method: method,
+                        contentType: "application/json",
+                        accepts: "application/json",
+                        cache: false,
+                        dataType: 'json',
+                        data: JSON.stringify(data),
+                        error: function (jqXHR) {
+                            console.log("ajax error " + jqXHR.status);
+                        }
+                    };
+                    return $.ajax(request);
+                }
+
+                //----------------------------<send AJAX request of 'GET' type>-------------------------------------------------
+                self.getAjax = function (uri, method) {
+                    var request = {
+                        url: uri,
+                        method: method,
+                        contentType: "application/json",
+                        accepts: "application/json",
+                        cache: false,
+                        dataType: 'json',
+                        error: function (jqXHR) {
+                            console.log("ajax error " + jqXHR.status);
+                        }
+                    };
+                    return $.ajax(request);
+                }
+
+                //----------------------------<send AJAX request of 'PUT' type>--------------------------------------------------
+                self.putAjax = function (uri, method, data) {
+                    var request = {
+                        url: uri,
+                        method: method,
+                        contentType: "application/json",
+                        accepts: "application/json",
+                        cache: false,
+                        dataType: 'json',
+                        data: JSON.stringify(data),
+                        error: function (jqXHR) {
+                            console.log("ajax error " + jqXHR.status);
+                        }
+                    };
+                    return $.ajax(request);
+                }
+
+                //--------------------------<send AJAX request of 'DELETE' type>-------------------------------------------------
+                self.deleteAjax = function (uri) {
+                    var request = {
+                        url: uri,
+                        type: "DELETE",
+                        cache: false,
+                        contentType: "application/json",
+                        error: function (jqXHR) {
+                            console.log("ajax error " + jqXHR.status);
+                        }
+                    };
+                    return $.ajax(request);
+                }
+
+                //------------------<shows the form to add new task>------------------------------------------------------------------
+                self.beginAdd = function () {
+                    $("#add").modal('show');
+                }
+
+                //------------------<sets the task and then shows the form to edit task>---------------------------------------------
+                self.beginEdit = function (task) {
+                    editTaskViewModel.setTask(task);
+                    $('#edit').modal('show')
+                }
+
+                //-------------------<sets the task and then shows the form to snooze task>----------------------------------------
+                self.startSnooze = function (task) {
+                    snoozeTaskViewModel.setTask(task);
+                    $('#snooze').modal('show')
+                }
+
+                /*
+                    updateTask:
+                    Replaces contents of task with contents of newTask
+                */
+
+                self.updateTask = function (task, newTask) {
+                    var i = self.tasks.indexOf(task);
+                    var scheduledDateTime = moment(newTask[0][0].scheduledDateTime).local().format("dddd, MMMM Do YYYY, HH:mm:ss");
+                    var completionDateTime = moment(newTask[0][0].completionDateTime).local().format("dddd, MMMM Do YYYY, HH:mm:ss");
+
+                    if (completionDateTime.toString() == "Invalid date")
+                        completionDateTime = "";
+
+                    var tasks = self.tasks()[i];
+                    self.tasks()[i].completionDateTime(completionDateTime);
+
+                    if (self.tasks()[i].done)
+                        self.tasks()[i].reminderText("");
+
+                    if (newTask[0][0].comments != "")
+                        self.tasks()[i].comments(newTask[0][0].comments);
+                    else
+                        self.tasks()[i].comments("");
+
+                    self.tasks()[i].uri(newTask[0][0].uri);
+                    self.tasks()[i].title(newTask[0][0].title);
+                    self.tasks()[i].description(newTask[0][0].description);
+                    self.tasks()[i].done(newTask[0][0].done);
+                    self.tasks()[i].scheduledDateTime(scheduledDateTime);
+                    self.tasks()[i].reminder(newTask[0][0].reminder);
+                }
+
+                /*
+                    //----------------------<function to edit task>----------------------------------------------
+
+                    1. Sends a AJAX request to Python-Flask server with the updated task
+                    2. Python-Flask server stores them in the database and responds with the updated task
+                    3. The updated task is updated in updateTask()
+                */
+
+                self.edit = function (task, data) {
+                    $('#edit').modal('hide');
+
+                    self.postAjax(task.uri(), 'PUT', data).done(function (res) {
+                        self.updateTask(task, res.task);
+                    });
+                }
+
+                //-----------<snooze a particular task>--------------------------------------------------------
+                self.snooze = function (task, data) {
+                    reminderText = "";
+                    self.postAjax(task.uri(), 'PUT', data).done(function (res) {
+                        self.updateTask(task, res.task);
+                    });
+                }
+
+                //----------------<add comments to a particular task>--------------------------------------------
+                self.comments = function (task, data) {
+                    var completionDateTime = moment().utc().format("YYYY-MM-DD HH:mm:ss");
+
+                    task.completionDateTime(completionDateTime);
+                    self.postAjax(task.uri(), 'PUT', { completionDateTime: completionDateTime, done: true, comments: data.comments.value }).done(function (res) {
+                        self.updateTask(task, res.task);
+                    });
+                }
+
+                //---------------------<remove particular task>-------------------------------------------------
+                self.remove = function (task) {
+                    self.deleteAjax(task.uri()).done(function () {
+                        self.tasks.remove(task);
+                    });
+                }
+
+                /*
+                ------------------<function to add a new task to the database>-----------------------------------------
+                
+                1. Client sends a AJAX request to Python-Flask server with the necessary details
+                2. The Python-Flask server responds with 'data' object
+                3. Required information is extracted from 'data' object which is then displayed by Knockout JS on the user interface
+                   via data-binding
+                */
+
+                self.add = function (task) {
+                    $('#add').modal('hide');
+
+                    self.postAjax(self.createTaskURI, 'POST', task).done(function (data) {
+                        var uri = data.task[0][0].uri;
+                        var title = data.task[0][0].title;
+                        var description = data.task[0][0].description;
+                        var done = data.task[0][0].done;
+                        var scheduledDateTime = moment(data.task[0][0].scheduledDateTime).local().format("dddd, MMMM Do YYYY, HH:mm:ss");
+                        var timestamp = moment(data.task[0][0].timestamp).local().format("dddd, MMMM Do YYYY, HH:mm:ss");
+
+                        self.tasks.push({
+                            uri: ko.observable(uri),
+                            title: ko.observable(title),
+                            description: ko.observable(description),
+                            done: ko.observable(done),
+                            timestamp: ko.observable(timestamp),
+                            scheduledDateTime: ko.observable(scheduledDateTime),
+                            reminder: ko.observable(false),
+                            reminderText: ko.observable(),
+                            completionDateTime: ko.observable(),
+                            comments: ko.observable()
+                        });
+                    });
+                }
+
+                /*
+                //-------------< invoked when 'Mark Done' clicked by the user>----------------------
+                
+                1. Sends an AJAX request to Python-Flask server to set the done flag to true
+                2. Python-Flask responds with the updated task
+                */
+
+                self.markDone = function (task) {
+                    var completionDateTime = moment().utc().format("YYYY-MM-DD HH:mm:ss");
+                    self.postAjax(task.uri(), 'PUT', { done: true, reminder: false, completionDateTime: completionDateTime }).done(function (res) {
+                        self.updateTask(task, res.task);
+                        var completionDateTime = moment(res.task[0][0].completionDateTime).local().format("dddd, MMMM Do YYYY, HH:mm:ss");
+                        task.completionDateTime(completionDateTime);
+                        commentsViewModel.setTask(task);
+                        $('#comments').modal('show')
+                    });
+                }
+                /*
+                //-------------< invoked when 'Mark Progress' clicked by the user>----------------------
+                
+                1. Sends an AJAX request to Python-Flask server to set the done flag to false
+                2. Python-Flask responds with the updated task
+                */
+
+                self.markInProgress = function (task) {
+                    self.postAjax(task.uri(), 'PUT', { done: false, reminder: true }).done(function (res) {
+                        self.updateTask(task, res.task);
+                    });
+                }
+
+                /*
+                    //------------------------<gets a list of tasks with 'done' set to true>-----------------------------
+                    1. Sends a AJAX request to Python-Flask Server
+                    2. Python-Flask server responds with all tasks with done flag set to true
+                */
+
+                self.showDoneTasks = function () {
+                    self.getAjax(self.getDoneTasksURI, 'GET').done(function (data) {
+                        self.tasks.removeAll();
+                        for (var i = 0; i < data.tasks.length; i++) {
+                            var completionDateTime = moment(data.tasks[i][0].completionDateTime).local().format("dddd, MMMM Do YYYY, HH:mm:ss");
+                            var comments = data.tasks[i][0].comments;
+
+                            if (completionDateTime.toString() == "Invalid date")
+                                completionDateTime = "";
+
+                            if (data.tasks[i][0].scheduledDateTime == undefined) {
+                                scheduledDateTime = "Incorrect Date/Time"
+                            }
+                            else {
+                                scheduledDateTime = moment(data.tasks[i][0].scheduledDateTime).local().format("dddd, MMMM Do YYYY, HH:mm:ss");
+                            }
+                            self.tasks.push({
+                                uri: ko.observable(data.tasks[i][0].uri),
+                                title: ko.observable(data.tasks[i][0].title),
+                                description: ko.observable(data.tasks[i][0].description),
+                                done: ko.observable(data.tasks[i][0].done),
+                                timestamp: ko.observable(moment(data.tasks[i][0].timestamp).local().format("dddd, MMMM Do YYYY, HH:mm:ss")),
+                                scheduledDateTime: ko.observable(scheduledDateTime),
+                                reminder: ko.observable(data.tasks[i][0].reminder),
+                                reminderText: ko.observable(),
+                                completionDateTime: ko.observable(completionDateTime),
+                                comments: ko.observable(comments)
+                            });
+                        }
+                    });
+                }
+
+                /*
+                 //------------------------<gets a list of tasks with 'done' set to false>-----------------------------
+                 1. Sends a AJAX request to Python-Flask Server
+                 2. Python-Flask server responds with all tasks with done flag set to false
+                */
+
+                self.showPendingTasks = function () {
+                    self.getAjax(self.getPendingTaskURI, 'GET').done(function (data) {
+                        self.tasks.removeAll();
+                        for (var i = 0; i < data.tasks.length; i++) {
+                            if (data.tasks[i][0].scheduledDateTime == undefined) {
+                                scheduledDateTime = "Incorrect Date/Time";
+                            }
+                            else {
+                                scheduledDateTime = moment(data.tasks[i][0].scheduledDateTime).local().format("dddd, MMMM Do YYYY, HH:mm:ss");
+                            }
+                            self.tasks.push({
+                                uri: ko.observable(data.tasks[i][0].uri),
+                                title: ko.observable(data.tasks[i][0].title),
+                                description: ko.observable(data.tasks[i][0].description),
+                                done: ko.observable(data.tasks[i][0].done),
+                                timestamp: ko.observable(moment(data.tasks[i][0].timestamp).local().format("dddd, MMMM Do YYYY, HH:mm:ss")),
+                                scheduledDateTime: ko.observable(scheduledDateTime),
+                                reminder: ko.observable(data.tasks[i][0].reminder),
+                                reminderText: ko.observable(),
+                                completionDateTime: ko.observable(),
+                                comments: ko.observable(data.tasks[i][0].comments)
+                            });
+                        }
+                    });
+                }
+
+                /*
+                  //----------------------<function to get all tasks from the database>-------------------------------------------  
+                   
+                   1. Sends a AJAX call to the Python-Flask server requesting for all tasks from the database
+                   2. Python-Flask server responds with a list of tasks
+                   3. This function then adds the response in it tasks list
+                   4. The table is dynamically updated by Knockout JS based on the tasks collection.
+                */
+
+                self.getTasks = function () {
+                    self.getAjax(self.getTasksURI, 'GET').done(function (data) {
+                        for (var i = 0; i < data.tasks.length; i++) {
+                            var completionDateTime = moment(data.tasks[i][0].completionDateTime).local().format("dddd, MMMM Do YYYY, HH:mm:ss");
+                            var comments = data.tasks[i][0].comments;
+
+                            if (completionDateTime.toString() == "Invalid date")
+                                completionDateTime = "";
+
+                            if (data.tasks[i][0].scheduledDateTime == undefined || data.tasks[i][0].scheduledDateTime == "Invalid Date") {
+                                scheduledDateTime = "No Date/No Time";
+                            }
+                            else {
+                                scheduledDateTime = moment(data.tasks[i][0].scheduledDateTime).local().format("dddd, MMMM Do YYYY, HH:mm:ss");
+                            }
+
+                            self.tasks.push({
+                                uri: ko.observable(data.tasks[i][0].uri),
+                                title: ko.observable(data.tasks[i][0].title),
+                                description: ko.observable(data.tasks[i][0].description),
+                                done: ko.observable(data.tasks[i][0].done),
+                                timestamp: ko.observable(moment(data.tasks[i][0].timestamp).local().format("dddd, MMMM Do YYYY, HH:mm:ss")),
+                                scheduledDateTime: ko.observable(scheduledDateTime),
+                                reminder: ko.observable(data.tasks[i][0].reminder),
+                                reminderText: ko.observable(),
+                                completionDateTime: ko.observable(completionDateTime),
+                                comments: ko.observable(comments)
+                            });
+                        }
+                    });
+                }
+
+                /*
+                    //------------------<function to delete all tasks from the database>------------------------------------
+
+                    1. Sends a AJAX request to Python-Flask server to delete all tasks
+                    2. The Python-Flask server then responds with a empty list of tasks
+                */
+                self.deleteAllTasks = function () {
+                    self.tasks.removeAll();
+                    self.getAjax(self.deleteAllTasksURI, 'GET').done(function (data) {
+                        //---------will never enter the for loop since data.tasks will be empty----------------------
+                        for (var i = 0; i < data.tasks.length; i++) {
+                            var scheduledDate, scheduledTime;
+                            if (data.tasks[i][0].scheduledDate == undefined && data.tasks[i][0].scheduledTime == undefined) {
+                                scheduledDate = "No Date";
+                                scheduledTime = "No Time";
+                            }
+                            else {
+                                date = new Date(data.tasks[i][0].scheduledDate);
+                                time = data.tasks[i][0].scheduledTime;
+                                day = date.getDate() + 1;
+                                month = date.getMonth();
+                                year = date.getFullYear();
+                                hours = time.substr(0, time.indexOf(":"));
+                                minutes = time.substr(time.indexOf(":") + 1, time.length - 1);
+                                scheduledDateTime = new Date(year, month, day, hours, minutes)
+                            }
+                            self.tasks.push({
+                                uri: ko.observable(data.tasks[i][0].uri),
+                                title: ko.observable(data.tasks[i][0].title),
+                                description: ko.observable(data.tasks[i][0].description),
+                                done: ko.observable(data.tasks[i][0].done),
+                                timestamp: ko.observable(new Date(data.tasks[i][0].timestamp)),
+                                scheduledDateTime: ko.observable(scheduledDateTime),
+                                reminder: ko.observable(data.tasks[i][0].reminder),
+                                reminderText: ko.observable()
+                            });
+                        }
+                        //--------------------------------------------------------------------------------
+                    });
+                }
+
+                //-----------------------<function to show all tasks present in the database>-------------------------------
+                self.showAllTasks = function () {
+                    self.tasks.removeAll();
+                    self.getTasks();
+                }
+
+                //---------------------<function to export table of tasks along with its attribute to an excel spreadsheet>-----
+                self.exportToExcel = function () {
+                    self.getAjax(self.getTasksURI, 'GET').done(function (data) {
+                        var doneTasks = [], pendingTasks = [];
+                        for (var i = 0; i < data.tasks.length; i++) {
+                            var doneTasks;
+                            if (data.tasks[i][0].done == true) {
+                                doneTasks.push(data.tasks[i][0]);
+                            }
+                            else
+                                pendingTasks.push(data.tasks[i][0]);
+                        }
+                        var wb = XLSX.utils.book_new();
+                        wb.Props = {
+                            Title: "Tasks",
+                            Subject: "Tasks file",
+                            Author: "Tasks Application",
+                            CreatedDate: new Date(),
+                        };
+                        var doneTasksData = [];
+                        var pendingTasksData = [];
+                        wb.SheetNames.push("Done Tasks");
+                        wb.SheetNames.push("Pending Tasks");
+                        var headers = ['Title', 'Description', 'CreatedOn', 'Scheduled Date/Time', 'Completion Date/Time', 'Completion Comments']
+
+                        doneTasksData.push(headers);
+
+                        for (var j = 0; j < doneTasks.length; j++) {
+                            var task = doneTasks[j];
+                            var attributes = [];
+                            var title = task.title;
+                            var description = task.description;
+                            var timestamp = moment(task.timestamp).local().format("dddd, MMMM Do YYYY, HH:mm:ss");
+
+                            var scheduledDateTime = moment(task.scheduledDateTime).local().format("dddd, MMMM Do YYYY, HH:mm:ss");
+                            var completionDateTime = moment(task.completionDateTime).local().format("dddd, MMMM Do YYYY, HH:mm:ss");
+                            var comments = task.comments;
+                            attributes.push(title, description, timestamp.toString(), scheduledDateTime.toString(), completionDateTime.toString(), comments);
+                            doneTasksData.push(attributes);
+                        }
+                        pendingTasksData.push(headers);
+
+                        for (var j = 0; j < pendingTasks.length; j++) {
+                            var task = pendingTasks[j];
+                            var attributes = [];
+                            var title = task.title;
+                            var description = task.description;
+                            var timestamp = moment(task.timestamp).local().format("dddd, MMMM Do YYYY, HH:mm:ss");
+
+                            var scheduledDate = moment(task.scheduledDateTime).local().format("dddd, MMMM Do YYYY, HH:mm:ss");
+
+                                completionDateTime = "";
+
+                            var comments = task.comments;
+                            attributes.push(title, description, timestamp.toString(), scheduledDateTime.toString(), completionDateTime.toString(), comments);
+                            pendingTasksData.push(attributes);
+                        }
+
+                        var wscols = [
+                            { wch: 50 },
+                            { wch: 50 },
+                            { wch: 50 },
+                            { wch: 50 },
+                            { wch: 50 },
+                            { wch: 50 }
+                        ];
+
+                        var ws_dataDoneTasks = doneTasksData;
+                        var ws_dataPendingTasks = pendingTasksData;
+                        var ws_done = XLSX.utils.aoa_to_sheet(ws_dataDoneTasks);
+                        var ws_pending = XLSX.utils.aoa_to_sheet(ws_dataPendingTasks);
+                        wb.Sheets["Done Tasks"] = ws_done;
+                        wb.Sheets["Pending Tasks"] = ws_pending;
+                        ws_done['!cols'] = wscols;
+                        ws_pending['!cols'] = wscols;
+                        var wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'binary' });
+
+                        function s2ab(s) {
+                            var buf = new ArrayBuffer(s.length);
+                            var view = new Uint8Array(buf);
+
+                            for (var i = 0; i < s.length; i++)
+                                view[i] = s.charCodeAt(i) & 0xFF;
+                            return buf;
+                        }
+                        saveAs(new Blob([s2ab(wbout)], { type: "application/octet-stream" }), 'Tasks.xlsx');
+                    });
+                }
+
+                //---------------call getTasks initially-----------------------------------------------------
+                self.getTasks();
+                //-------------------------------------------------------------------------------------------
+
+                //----------<function to start reminders>---------------------------------------------------
+                self.startReminder = function () {
+                    self.getAjax(self.getRemindersURI, 'GET').done(function (data) {
+                        for (var i = 0; i < data.tasks.length; i++) {
+                            var uri = data.tasks[i][0].uri;
+
+                            var task = ko.utils.arrayFirst(self.tasks(), function (item) {
+                                return item.uri() == uri;
+                            });
+                            if (data.tasks[i][0].reminder == true) {
+                                if (task != null) {
+                                    task.reminder(true);
+                                    task.reminderText("Task is due for completion");
+                                    task.completionDateTime();
+                                }
+                            }
+                        }
+                    });
+                }
+
+                self.changeBackgroundImage = function () {
+                    var totalCount = 5;
+                    var num = Math.ceil(Math.random() * totalCount);
+                    document.body.background = "/images/" + num + '.jpeg';
+                    document.body.style.backgroundRepeat = "repeat";
+                }
+
+                $(document).ready(function () {
+                    //------start the reminder function after the document is loaded----------------------
+                    //self.changeBackgroundImage();
+                    setInterval("tasksViewModel.startReminder()", 5000);
+                    //-----------------------------------------------------------------------------------
+                });
+            }
+
+            /*
+                AddTasksViewModel:
+                1. Gets information entered by user and invokes the TaskViewModel to add new task to the database
+            */
+
+            function AddTasksViewModel() {
+                var self = this;
+                self.title = ko.observable();
+                self.description = ko.observable();
+                self.scheduledDate = ko.observable();
+                self.scheduledTime = ko.observable();
+
+                self.addTask = function () {
+                    var title = document.getElementById("inputTitle");
+                    var description = document.getElementById("inputDescription");
+                    var scheduledDate = document.getElementById('inputScheduledDate');
+                    var scheduledTime = document.getElementById('inputScheduledTime');
+                    var titleError = document.getElementById('titleError');
+                    var descriptionError = document.getElementById('descriptionError');
+                    var scheduledDateError = document.getElementById('scheduledDateError');
+                    var scheduledTimeError = document.getElementById('scheduledTimeError');
+
+                    if (!title.checkValidity()) {
+                        titleError.innerHTML = title.validationMessage;
+                    }
+                    else {
+                        titleError.innerHTML = title.validationMessage;
+
+                    }
+
+                    if (!description.checkValidity()) {
+                        descriptionError.innerHTML = description.validationMessage;
+                    }
+                    else {
+                        descriptionError.innerHTML = description.validationMessage;
+                    }
+
+                    if (!scheduledDate.checkValidity()) {
+                        scheduledDateError.innerHTML = scheduledDate.validationMessage;
+                    }
+                    else {
+                        scheduledDateError.innerHTML = "";
+                    }
+
+                    if (!scheduledTime.checkValidity()) {
+                        scheduledTimeError.innerHTML = scheduledTime.validationMessage;
+                    }
+                    else {
+                        scheduledTimeError.innerHTML = "";
+                    }
+
+                    if (title.validationMessage != "" || description.validationMessage != "" || scheduledDate.validationMessage != "" || scheduledTime.validationMessage != "")
+                        return;
+
+
+                    //get date and time entered by the user
+                    var date = self.scheduledDate();
+                    var time = self.scheduledTime();
+                    var dateTime = moment(date + ' ' + time);
+
+                    tasksViewModel.add({
+                        title: self.title(),
+                        description: self.description(),
+                        scheduledDateTime: dateTime
+                    });
+                    self.title("");
+                    self.description("");
+                    self.scheduledDate("");
+                    self.scheduledTime("");
+                }
+            }
+
+            /*
+                EditTaskViewModel:
+                1. sets the original task, gets user information and invokes TaskViewModel to edit the set task
+            */
+
+            function EditTaskViewModel() {
+                var self = this;
+                self.title = ko.observable();
+                self.description = ko.observable();
+                self.scheduledDate = ko.observable();
+                self.scheduledTime = ko.observable();
+                self.scheduledDateTime = ko.observable();
+                self.done = ko.observable();
+
+
+                self.setTask = function (task) {
+                    self.task = task;
+                    self.title(task.title());
+                    self.description(task.description());
+                    self.scheduledDateTime(task.scheduledDateTime());
+                    self.done(task.done());
+                }
+
+                self.editTask = function () {
+
+                    //get updated date and time entered by the user
+                    var date = self.scheduledDate();
+                    var time = self.scheduledTime();
+                    var dateTime = moment(date + ' ' + time);
+
+                    tasksViewModel.edit(self.task, {
+                        title: self.title(),
+                        description: self.description(),
+                        scheduledDateTime: dateTime,
+                        done: self.done()
+                    });
+                }
+            }
+
+            /*
+                SnoozeViewModel:
+                1. Sets the task, gets user information for minutes, hours and seconds and then inovkes TaskViewModel to snooze task
+            */
+            function SnoozeViewModel() {
+                var self = this;
+                self.title = ko.observable();
+                self.description = ko.observable();
+                self.scheduledDateTime = ko.observable();
+                self.done = ko.observable();
+
+                self.days = ko.observable(0);
+                self.hours = ko.observable(0);
+                self.minutes = ko.observable(0);
+
+                self.setTask = function (task) {
+                    self.task = task;
+                    self.title(task.title());
+                    self.description(task.description());
+                    self.scheduledDateTime(task.scheduledDateTime());
+                    self.done(task.done());
+                    $('snooze').show('show');
+                }
+
+                self.snoozeTask = function () {
+                    var minutes = document.getElementById("inputSnoozeMinutes");
+                    var hours = document.getElementById("inputSnoozeHours");
+                    var days = document.getElementById("inputSnoozeDays");
+                    var minuteError = document.getElementById("minuteError");
+                    var hourError = document.getElementById("hourError");
+                    var dayError = document.getElementById("dayError");
+                    var snoozeForm = document.getElementById("snoozeForm");
+
+                    minuteError.innerHTML = "";
+                    hourError.innerHTML = "";
+                    dayError.innerHTML = "";
+
+                    if (!minutes.checkValidity()) {
+                        minuteError.innerHTML = (minutes.validationMessage);
+                        minutes.value = 0;
+                        return;
+                    }
+                    if (!hours.checkValidity()) {
+                        hourError.innerHTML = (hours.validationMessage);
+                        hours.value = 0;
+                        return;
+                    }
+                    if (!days.checkValidity()) {
+                        dayError.innerHTML = (days.validationMessage);
+                        days.value = 0;
+                        return;
+                    }
+
+                    var scheduledDateTime = self.scheduledDateTime()
+                    var dateTime = scheduledDateTime.split(',');
+                    for (var i = 0; i < dateTime.length; i++) {
+                        dateTime[i] = $.trim(dateTime[i])
+                    }
+
+                    var dayName = dateTime[0];
+                    var day = dateTime[1];
+                    var time = dateTime[2];
+
+                    var date = day.split(' ');
+                    var time = time.split(':');
+                    var hr = time[0];
+                    var min = time[1];
+                    var month = moment().month(date[0]).format("M");
+                    var day = date[1].substr(0, date[1].length - 2);
+                    var year = date[2];
+
+                    var snoozeHours = hours.value;
+                    var snoozeMinutes = minutes.value;
+                    var snoozeDays = days.value;
+
+                    min = parseInt(min) + parseInt(snoozeMinutes);
+                    if (min >= 60) {
+                        (hr) = parseInt(hr) + 1;
+                        min = min - 60;
+                    }
+
+                    hr = parseInt(hr) + parseInt(snoozeHours);
+                    if (hr >= 24) {
+                        day = parseInt(day) + 1;
+                        hr = hr - 24;
+                    }
+
+                    day = parseInt(day) + parseInt(snoozeDays);
+
+                    var daysInMonth = new Date(year, month, 0).getDate();
+
+                    if (day > daysInMonth) {
+                        month = parseInt(month) + 1;
+                        day = day - 31;
+                    }
+
+                    if (parseInt(month) > 12) {
+                        year = parseInt(year) + 1;
+                    }
+
+                    if (month.toString().length == 1)
+                        month = "0" + month.toString();
+                    if (day.toString().length == 1)
+                        day = "0" + day.toString();
+                    if (hr.toString().length == 1)
+                        hr = "0" + hr.toString();
+                    if (min.toString().length == 1)
+                        min = "0" + min.toString();
+
+                    var newScheduledDate = year + "-" + month + "-" + day;
+                    var newScheduledTime = hr + ":" + min;
+
+                    var newScheduledDateTime = moment(newScheduledDate + " " + newScheduledTime);
+                    newScheduledDateTime = newScheduledDateTime.utc().format("YYYY-MM-DD HH:mm:ss");
+
+                    minutes.value = 0;
+                    hours.value = 0;
+                    days.value = 0;
+
+                    tasksViewModel.snooze(self.task, {
+                        title: self.title(),
+                        description: self.description(),
+                        scheduledDateTime: newScheduledDateTime,
+                        done: self.done()
+                    });
+                    $('#snooze').modal('hide');
+                }
+            }
+
+            /*
+                CommentsViewModel:
+                1.Sets task, gets comments entered by the user and then invokes TaskViewModel to add comments for that task in the database
+            */
+            function CommentsViewModel() {
+                var self = this;
+                self.title = ko.observable();
+                self.description = ko.observable();
+                self.scheduledDateTime = ko.observable();
+                self.completionDateTime = ko.observable();
+                self.done = ko.observable();
+                self.comments = ko.observable();
+
+                self.setTask = function (task) {
+                    self.task = task;
+                    self.title(task.title());
+                    self.description(task.description());
+                    self.scheduledDateTime(task.scheduledDateTime());
+                    self.completionDateTime(task.completionDateTime());
+                    self.done(task.done());
+                }
+
+                self.addComments = function () {
+                    var comments = document.getElementById("inputComments");
+                    tasksViewModel.comments(self.task, {
+                        comments: comments,
+                    });
+                    comments.value = "";
+                    $('#comments').modal('hide');
+
+                }
+            }
+            var tasksViewModel = new TasksViewModel();
+            var addTaskViewModel = new AddTasksViewModel();
+            var editTaskViewModel = new EditTaskViewModel();
+            var snoozeTaskViewModel = new SnoozeViewModel();
+            var commentsViewModel = new CommentsViewModel();
+            ko.applyBindings(tasksViewModel, $('#main')[0]);
+            ko.applyBindings(addTaskViewModel, $('#add')[0]);
+            ko.applyBindings(editTaskViewModel, $('#edit')[0]);
+            ko.applyBindings(snoozeTaskViewModel, $('#snooze')[0]);
+            ko.applyBindings(commentsViewModel, $('#comments')[0]);
+        </script>
+</body>
+
+</html>
