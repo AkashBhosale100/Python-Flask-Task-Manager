@@ -32,6 +32,6 @@ Knockout JS client currently deployed on 000Webhost (https://www.000webhost.com/
 To see the deployed application navigate to https://bhosaleakash-tasks.000webhostapp.com/index.html
 
 ## Build With
--Python-Flask: A micro web framework written in Python
--SQLALCHEMY:   Open source python SQL toolkit
--Knockout JS:  A standalone JavaScript implementation of the Model-View-ViewModel pattern.
+-Python-Flask: A micro web framework written in Python  
+-SQLALCHEMY:   Open source python SQL toolkit  
+-Knockout JS:  A standalone JavaScript implementation of the Model-View-ViewModel pattern  
